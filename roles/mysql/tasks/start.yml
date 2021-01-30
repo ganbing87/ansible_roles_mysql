@@ -1,0 +1,5 @@
+- name: Start mysql service.
+  systemd:
+    name: mysqld
+    state: started
+    daemon_reload: yes

@@ -1,0 +1,45 @@
+---
+- name: check if data_dir of mysql is empty
+  shell: ls "{{mysql_data_path}}"
+  register: result
+
+- name: Initialize Mysql.
+  shell: ./mysqld --initialize-insecure --user=mysql --datadir={{mysql_data_path}} --basedir=/export/server/mysql
+  args:
+    chdir: /export/server/mysql/bin
+  when: result.stdout == ""
+
+- name: Setup mysql SSL.
+  shell: ./mysql_ssl_rsa_setup --datadir={{mysql_data_path}}
+  args:
+    chdir: /export/server/mysql/bin
+
+- name: Recursively change mysql directory.
+  file:
+    path: '/export/package/{{MYSQL_VERSION}}'
+    state: directory
+    recurse: yes
+    owner: '{{MYSQL_USER}}'
+    group: '{{MYSQL_GROUP}}'
+
+- name: Configure mysql.
+  template:
+    src: '{{ mysql_item.src }}'
+    dest: '{{ mysql_item.dest }}'
+    mode: "{{ mysql_item.mode }}"
+    owner: '{{ MYSQL_USER }}'
+    group: '{{ MYSQL_GROUP }}'
+  with_items:
+   - src: my.cnf.j2
+     dest: /etc/my.cnf
+     mode: "0644"
+   - src: mysql.server.j2
+     dest: "{{ softlink_dir }}/mysql/mysqld"
+     mode: "0755"
+   - src: mysqld.service.j2
+     dest: /usr/lib/systemd/system/mysqld.service
+     mode: "0644"
+  loop_control:
+    loop_var: mysql_item
+  notify:
+   - Restart mysql

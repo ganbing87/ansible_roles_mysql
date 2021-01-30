@@ -1,0 +1,55 @@
+---
+- name: set 'ansible_python_interpreter' variable
+  set_fact:
+    ansible_python_interpreter: "{{ softlink_dir }}/python-virtualenv/bin/python"
+
+- name: Set mysql passwd for mysql localhost.
+  mysql_user:
+    login_host: localhost
+    login_port: '{{mysql_port}}'
+    login_user: root
+    login_password: ''
+    user: root
+    password: '{{mysql_passwd}}'
+    update_password: always
+  #no_log: true
+  ignore_errors: yes
+
+- name: Authorize root to connect from 127.0.0.1.
+  mysql_user:
+    login_host: localhost
+    login_user: root
+    login_port: '{{ mysql_port }}'
+    login_password: '{{ mysql_passwd }}'
+    user: root
+    host: 127.0.0.1
+    priv: "*.*:ALL,GRANT"
+    password: "{{ mysql_passwd }}"
+    update_password: always
+  no_log: true
+
+#- name: register mysql to consul
+#  consul:
+#    host: 192.168.66.190
+#    port: 8500
+#    service_name: mysql
+#    service_port: "{{ mysql_port }}"
+#    service_address: "{{ inventory_hostname }}"
+#    state: absent
+#    script: "telnet {{ inventory_hostname }} {{ mysql_port }}"
+#    interval: 60s
+
+- name: register mysql to consul
+  uri:
+    url: "http://{{ groups['consul'][0] }}:{{ consul_port }}/v1/agent/service/register"
+    method: PUT
+    body_format: json
+    body:
+      Name: mysql
+      ID: "mysql_{{ ansible_ssh_host|default(ansible_host) }}"
+      Address: "{{ ansible_ssh_host|default(ansible_host) }}"
+      Port: "{{ mysql_port }}"
+      Check:
+        DeregisterCriticalServiceAfter: "5m"
+        TCP: "{{ ansible_ssh_host|default(ansible_host) }}:{{ mysql_port }}"
+        Interval: "5s"

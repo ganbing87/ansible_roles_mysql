@@ -1,0 +1,48 @@
+- name: Stop mysql service.
+  shell: service mysqld stop 
+  ignore_errors: yes
+
+- name:  Wait for mysql to stopped.
+  wait_for:
+    port: '{{mysql_port}}'
+    state: stopped
+    timeout: 21
+  ignore_errors: yes
+
+- name: Delete mysql files.
+  file:
+    path: '{{ mysql_item }}'
+    state: absent
+  with_items:
+    - /etc/init.d/mysqld
+    - /usr/bin/mysql
+    - /usr/bin/mysqladmin
+    - '{{mysql_data_path}}'
+    - /export/server/mysql
+    - /etc/my.cnf
+    - '{{ install_dir }}/{{MYSQL_VERSION}}'
+    - '{{mysql_log_path}}'
+    - '{{mysql_log_path}}/mysqld.log'
+  loop_control:
+    loop_var: mysql_item
+
+- name: Delete mysql user.
+  user:
+    name: '{{MYSQL_USER}}'
+    state: absent
+    remove: yes
+  ignore_errors: yes
+
+- name: Delete mysql group.
+  group:
+    name: '{{MYSQL_GROUP}}'
+    state: absent 
+  ignore_errors: yes
+
+- name: Remove the dependency package. 
+  yum:
+    name: '{{ packages }}'
+    state: removed 
+  vars:
+    packages:
+     - MySQL-python-1.2.5-1.el7.x86_64

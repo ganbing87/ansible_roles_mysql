@@ -1,0 +1,85 @@
+---
+- name: Copy install packages
+  copy:
+    src: '{{ local_packages_dir }}/{{MYSQL_VERSION}}.tar.gz'
+    dest: "{{ remote_packages_dir }}/"
+
+- name: unpacks archive
+  unarchive:
+    src: "{{ remote_packages_dir }}/{{MYSQL_VERSION}}.tar.gz"
+    dest: "{{ install_dir }}"
+    remote_src: yes
+    creates: "{{ install_dir }}/{{ MYSQL_VERSION }}"
+
+- name: Create link dir.
+  file:
+    src: '{{install_dir}}/{{MYSQL_VERSION}}'
+    dest: /export/server/mysql
+    state: link
+
+- name: Delete mysql
+  file:
+    path: /usr/bin/mysql
+    state: absent
+
+- name: Delete mysqladmin
+  file:
+    path: /usr/bin/mysqladmin
+    state: absent
+
+- name: Create mysql commamd link dir.
+  file:
+    src: '{{ mysql_item.src }}'
+    dest: '{{ mysql_item.dest }}'
+    state: link
+  with_items:
+    - { src: /export/server/mysql/bin/mysql, dest: /usr/bin/mysql }
+    - { src: /export/server/mysql/bin/mysqladmin, dest: /usr/bin/mysqladmin }
+  loop_control:
+    loop_var: mysql_item
+
+- name: Create mysql groups.
+  group: 
+    name: '{{MYSQL_GROUP}}' 
+    state: present
+
+- name: Create mysql user.
+  user: 
+    name: '{{MYSQL_USER}}'
+    shell: /bin/bash 
+    group: '{{MYSQL_GROUP}}'
+    password: "{{ MYSQL_PASSWD | password_hash('sha512')}}"
+    update_password: on_create 
+    system: no
+
+- name: Create mysql data directory. 
+  file:
+    path: '{{mysql_data_path}}'
+    state: directory
+    mode: '0755'
+
+- name: Create mysql socket directory.
+  file:
+    path: "{{MYSQL_SOCKET_PATH}}"
+    state: directory
+    mode: '0755'
+    owner: '{{MYSQL_USER}}'
+    group: '{{MYSQL_GROUP}}'
+    recurse: yes
+
+- name: Create mysql log directory.
+  file:
+    path: '{{mysql_log_path}}'
+    state: directory
+    mode: '0755'
+    owner: '{{MYSQL_USER}}'
+    group: '{{MYSQL_GROUP}}'
+    recurse: yes
+
+- name: Create mysql log file. 
+  file:
+    path: '{{mysql_log_path}}/mysqld.log'
+    state: touch
+    mode: u+rw,g+w,o-rwx
+    owner: '{{MYSQL_USER}}'
+    group: '{{MYSQL_GROUP}}'

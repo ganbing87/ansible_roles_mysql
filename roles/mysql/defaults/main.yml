@@ -1,0 +1,16 @@
+#mysql package
+MYSQL_VERSION: mysql-5.7.30-el7-x86_64 
+#mysql user configure..
+MYSQL_GROUP: mysql
+MYSQL_USER: mysql
+MYSQL_PASSWD: mysql
+MYSQL_SOCKET_PATH: /var/lib/mysql
+#
+#MYSQL_CONFIG_PATH: /etc/my.cnf
+
+MAX_CONNECTIONS: 1000
+#configure replication.
+MYSQL_REPL_USER:
+  name: 'repl'
+  passwd: 'repl@123'
+  priv: '*.*:REPLICATION SLAVE,REPLICATION CLIENT'

@@ -1,0 +1,84 @@
+---
+- name: Create replication user.
+  mysql_user:
+    login_host: localhost
+    login_port: '{{mysql_port}}'
+    login_user: root
+    login_password: '{{mysql_passwd}}'
+    name: '{{MYSQL_REPL_USER.name}}'
+    password: '{{MYSQL_REPL_USER.passwd}}'
+    priv: '{{MYSQL_REPL_USER.priv}}'
+    host: "{{ hostvars['mysql-slave'].ansible_host }}"
+    state: present
+    login_unix_socket: '{{MYSQL_SOCKET_PATH}}/mysql.sock'
+  when: inventory_hostname == 'mysql-master' 
+  tags: mysql_repl
+
+- name: Get master status of 'mysql-master' from 'mysql-slave'
+  mysql_replication:
+    login_host: "{{ hostvars['mysql-master'].ansible_host }}"
+    login_port: '{{mysql_port}}'
+    login_user: "{{ MYSQL_REPL_USER.name }}"
+    login_password: "{{ MYSQL_REPL_USER.passwd }}"
+    mode: getmaster
+    login_unix_socket: "{{ MYSQL_SOCKET_PATH }}/mysql.sock"
+  register: repl_master_status
+  when: inventory_hostname == 'mysql-slave'
+  tags: master_status
+
+- name: stop slave on mysql-slave server first before configure master-slave
+  mysql_replication:
+    login_host: localhost
+    login_port: '{{mysql_port}}'
+    login_user: root
+    login_password: '{{mysql_passwd}}'
+    login_unix_socket: '{{MYSQL_SOCKET_PATH}}/mysql.sock'
+    mode: stopslave
+  when: inventory_hostname == 'mysql-slave'
+
+- name: Configure Master-slave.
+  mysql_replication:
+    login_host: localhost
+    login_port: '{{mysql_port}}'
+    login_user: root
+    login_password: '{{mysql_passwd}}'
+    mode: changemaster 
+    master_host: "{{ hostvars['mysql-master'].ansible_host }}"
+    master_user: '{{MYSQL_REPL_USER.name}}'
+    master_password: '{{MYSQL_REPL_USER.passwd}}'
+    login_unix_socket: '{{MYSQL_SOCKET_PATH}}/mysql.sock'
+    master_log_file: "{{ repl_master_status['File'] }}"
+    master_log_pos: "{{ repl_master_status['Position'] }}"
+  when: inventory_hostname == 'mysql-slave'
+
+- name: Start slave.
+  mysql_replication:
+    login_host: localhost
+    login_port: '{{mysql_port}}'
+    login_user: root
+    login_password: '{{mysql_passwd}}'
+    login_unix_socket: '{{MYSQL_SOCKET_PATH}}/mysql.sock'
+    mode: startslave
+  when: inventory_hostname == 'mysql-slave'
+
+- name: Get Slave info.
+  mysql_replication:
+    login_host: localhost
+    login_user: root
+    login_password: '{{mysql_passwd}}'
+    login_port: '{{mysql_port}}' 
+    login_unix_socket: '{{MYSQL_SOCKET_PATH}}/mysql.sock'
+    mode: getslave
+  register: slave_status
+  when: inventory_hostname == 'mysql-slave'
+  tags: mysql_status
+
+- name: Slave_IO_Running
+  debug: msg='{{slave_status['Slave_IO_Running']}}'
+  when: inventory_hostname == 'mysql-slave'
+  tags: mysql_status
+
+- name: Slave_SQL_Running
+  debug: msg='{{slave_status['Slave_SQL_Running']}}'
+  when: inventory_hostname == 'mysql-slave'
+  tags: mysql_status

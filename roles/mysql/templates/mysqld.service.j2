@@ -1,0 +1,16 @@
+[Unit]
+Description=MySQL Server
+Documentation=man:mysqld(5.7)
+Documentation=https://dev.mysql.com/doc/refman/en/using-systemd.html
+After=network.target
+After=syslog.target
+[Install]
+WantedBy=multi-user.target
+[Service]
+User={{ MYSQL_USER }}
+Group={{ MYSQL_GROUP }}
+PIDFile={{ mysql_data_path }}/mysql.pid
+ExecStart={{ softlink_dir }}/mysql/mysqld start
+ExecReload={{ softlink_dir }}/mysql/mysqld reload
+ExecStop={{ softlink_dir }}/mysql/mysqld stop
+LimitNOFILE = 5000

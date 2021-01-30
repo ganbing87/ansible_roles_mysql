@@ -1,0 +1,29 @@
+---
+- name: check mysql service helath in consul
+  uri:
+    url: "http://{{ groups['consul'][0] }}:{{ consul_port }}/v1/agent/health/service/id/mysql_{{ ansible_host }}?format=text"
+    method: GET
+    return_content: yes
+    status_code:
+      - 200
+      - 404
+      - 503
+  register: healthCheck
+
+- name: include tasks
+  include_tasks:
+    "{{ item }}"
+  with_items:
+#     - uninstall.yml
+    - install.yml
+    - configure.yml
+    - start.yml
+    - setup.yml
+  when: healthCheck.content != "passing"
+
+- name: Create Mysql master and slave mode.
+  include_tasks:
+    "{{ item }}"
+  with_items:
+    - master_slave_replication.yml
+  when: "'mysql-slave' in ansible_play_hosts"
